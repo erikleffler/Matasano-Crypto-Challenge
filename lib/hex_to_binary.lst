@@ -1,0 +1,115 @@
+     1                                  global _start
+     2                                  section .data
+     3                                  section .bss
+     4                                  	
+     5                                  	BUFFLEN equ 1024
+     6 00000000 <res 00000400>          	Buff resb BUFFLEN
+     7                                  
+     8                                  section .text
+     9                                  _start:
+    10                                  	
+    11 00000000 90                      	nop			; for debugging
+    12                                  
+    13 00000001 E849000000              	call read_buff		; fill buffer 
+    14 00000006 B900000000              	mov rcx, 0		; put bytes read in rcx for counting
+    15                                  .conv_loop:
+    16 0000000B 48BB-                   	mov rbx, Buff		; adress from which to read in buff
+    17 0000000D [0000000000000000] 
+    18 00000015 E85A000000              	call hex_to_binary	
+    19 0000001A 48FFC1                  	inc rcx			; increment index
+    20 0000001D 4839F1                  	cmp rcx, rsi		; see if we have read entire buff
+    21 00000020 740F                    	je write		; if so, write
+    22 00000022 EBE7                    	jmp .conv_loop
+    23 00000024 90                      	nop			; for debugging
+    24                                  
+    25                                  ; writes rsi bytes from Buff to sdtout and exits
+    26                                  exit:
+    27 00000025 B801000000              	mov rax, 1
+    28 0000002A BF00000000              	mov rdi, 0
+    29 0000002F CD80                    	int 0x80
+    30                                  
+    31                                  write:
+    32 00000031 4889F2                  	mov rdx, rsi		; char read in rsi
+    33 00000034 48D1EA                  	shr rdx, 1		; hex to byte ratio is 2:1, therfor divide by two
+    34 00000037 B804000000              	mov rax, 4		; specify sys write
+    35 0000003C BB01000000              	mov rbx, 1		; specify stdout
+    36 00000041 48B9-                   	mov rcx, Buff		; specify from where to  write from
+    37 00000043 [0000000000000000] 
+    38 0000004B CD80                    	int 80H 
+    39 0000004D EBB1                    	jmp _start		; restart after write
+    40                                  
+    41                                  ; Read BUFFLEN bytes from stdin and stor in Buff
+    42                                  read_buff:
+    43 0000004F B803000000              	mov rax, 3		; specify sys_read
+    44 00000054 BB00000000              	mov rbx, 0		; specify stdin
+    45 00000059 48B9-                   	mov rcx, Buff		; store result in Buff
+    46 0000005B [0000000000000000] 
+    47 00000063 BA00040000              	mov rdx, BUFFLEN	; read BUFFLEN characters
+    48 00000068 CD80                    	int 0x80
+    49 0000006A 4889C6                  	mov rsi, rax		; save number of bytes read
+    50 0000006D 4883F800                	cmp rax, 0		; check return of sys_read for EOF
+    51 00000071 74B2                    	je exit			; If EOF is read call exit
+    52 00000073 C3                      	ret
+    53                                  
+    54                                  ; Conv six hexvalues into a 3 byte binary number and stor in Conv_Buff
+    55                                  ; Pass read adress in rbx. Reads from right to left
+    56                                  ; stores value in conv_buff
+    57                                  hex_to_binary:
+    58 00000074 50                      	push rax		; preserve register value
+    59 00000075 52                      	push rdx		; preserve register value
+    60 00000076 4831C0                  	xor rax, rax		; zero out rax for usage
+    61                                  .get_hex_val:
+    62 00000079 803C0B04                	cmp byte [rbx+rcx], 4	; if ascii value is 4, we have reached eof
+    63 0000007D 74B2                    	je write		; if so, write
+    64 0000007F 803C0B0A                	cmp byte [rbx+rcx], 10	; if ascii value is 12, we have reached newline
+    65 00000083 74AC                    	je write		; if so, write
+    66 00000085 803C0B0D                	cmp byte [rbx+rcx], 13	; if ascii value is 12, we have reached newline
+    67 00000089 74A6                    	je write		; if so, write
+    68 0000008B 803C0B30                	cmp byte [rbx+rcx], 48	; if ascii value is lower than 48 it is not hex
+    69 0000008F 725A                    	jb error		; jump to error if the passed string isn't hex
+    70 00000091 803C0B3A                	cmp byte [rbx+rcx], 58	; if ascii value is lower than 58 it is a digit
+    71 00000095 7218                    	jb .digit
+    72 00000097 803C0B41                	cmp byte [rbx+rcx], 65	; if ascii value is lower -> not hex
+    73 0000009B 724E                    	jb error
+    74 0000009D 803C0B47                	cmp byte [rbx+rcx], 71	; if ascii value is lower than 91 it is a uppercaset
+    75 000000A1 7215                    	jb .uppercase
+    76 000000A3 803C0B61                	cmp byte [rbx+rcx], 97	; if ascii value is lower -> not hex
+    77 000000A7 7242                    	jb error
+    78 000000A9 803C0B67                	cmp byte [rbx+rcx], 103	; if ascii value is lower than 91 it is a lowercaset
+    79 000000AD 7212                    	jb .lowercase
+    80                                  
+    81                                  .digit:
+    82 000000AF 8A040B                  	mov al, [rbx+rcx]	; store ascii in rax
+    83 000000B2 4883E830                	sub rax, 48		; turn hex-ascii value in to binary value
+    84 000000B6 EB12                    	jmp .store		; store the value in conv_buff
+    85                                  
+    86                                  .uppercase:
+    87 000000B8 8A040B                  	mov al, [rbx+rcx]	; store ascii in rax
+    88 000000BB 4883E837                	sub rax, 55		; turn hex-ascii value in to binary value
+    89 000000BF EB09                    	jmp .store		; store the value in conv_buff
+    90                                  
+    91                                  .lowercase:
+    92 000000C1 8A040B                  	mov al, [rbx+rcx]	; store ascii in rax
+    93 000000C4 4883E857                	sub rax, 87		; turn hex-ascii value in to binary value
+    94 000000C8 EB00                    	jmp .store		; store the value in conv_buff
+    95                                  
+    96                                  .store:
+    97 000000CA 4889CA                  	mov rdx, rcx		; store rcx in rdx for manipualtion
+    98 000000CD 48D1EA                  	shr rdx, 1		; retrieve the correct index to insert into conv_buff
+    99 000000D0 4829D7                  	sub rdi, rdx		; the correct index into conv_buff
+   100 000000D3 48F7C101000000          	test rcx, 1		; check to see if rcx is even
+   101 000000DA 7506                    	jnz .add		; if it is odd, dont shift to upper 4 bits
+   102 000000DC 48C1E004                	shl rax, 4		; if it is not, store the hexval in upper 4 bits of byte-space
+   103 000000E0 EB03                    	jmp .cont_store
+   104                                  .add:
+   105 000000E2 020413                  	add al, [rbx+rdx]	; retrieve the lower 4 bits and add aswell
+   106                                  .cont_store:
+   107 000000E5 880413                  	mov byte [rbx+rdx], al	; store result in conv_buff
+   108 000000E8 5A                      	pop rdx			; restore rcx
+   109 000000E9 58                      	pop rax			; restore rax
+   110 000000EA C3                      	ret			; return
+   111                                  
+   112                                  error:
+   113 000000EB B801000000              	mov rax, 1		; specify sys_exit
+   114 000000F0 BF01000000              	mov rdi, 1		; error
+   115 000000F5 CD80                    	int 0x80
