@@ -74,9 +74,10 @@ def rand_mode_encrypt(data):
     return encrypted_data
 
 def detect_repetition(data):
-    for i in range((len(data)-1)/16):
-        for j in range(i + 1, (len(data)-1)/16):
-            if(data[i*16:(i+1)*16] == data[j*16:(j+1)*16]):
+    print "Length of data: %i." % len(data)
+    for i in range(len(data)-16):
+        for j in range(1, (len(data)-1)/16):
+            if(data[i:i+16] == data[i+j*16:i+(j+1)*16]):
                 return True
 
 
@@ -85,4 +86,4 @@ with open(sys.argv[1]) as f:
     if(detect_repetition(rand_mode_encrypt(data))):
         print "Guess: ECB"
     else:
-        print "Guess CBC"
+        print "Guess: CBC"
