@@ -14,12 +14,6 @@ def encrypt_AES_ECB(data, key):
     cipher = AES.new(key)
     return cipher.encrypt(data)
 
-def XOR(data1, data2):
-    for i in range(min(len(data1), len(data2))):
-        data1[i] ^= data2[i]
-    return data1
-
-
 def pad(msg):
     msg += (bytearray("0")*((16-len(msg))%16))
     return bytes(msg) 
