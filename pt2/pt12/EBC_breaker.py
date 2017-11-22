@@ -15,7 +15,7 @@ def encrypt_AES_ECB(data, key):
     return cipher.encrypt(data)
 
 def pad(msg):
-    msg += (bytearray("0")*((16-len(msg))%16))
+    msg += bytearray((16-len(msg))%16)
     return bytes(msg) 
 
 def rand_key_gen(size):
